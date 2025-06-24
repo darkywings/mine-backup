@@ -1,0 +1,13 @@
+[Unit]
+Description=Local Backup Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /path/to/backup-manager.py
+WorkingDirectory=/path/to/script_directory
+Restart=always
+User=your_username
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
