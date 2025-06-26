@@ -2,6 +2,7 @@ import os
 import time
 import datetime
 import schedule
+import tarfile
 import shutil
 
 import config as CONFIG
@@ -11,13 +12,16 @@ def create_backup():
     Creates the backup
     '''
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(CONFIG.BACKUP_DIR, f"backup_{timestamp}")
+    backup_path = os.path.join(CONFIG.BACKUP_DIR, f"backup_{timestamp}.tar.gz")
 
     try:
-        shutil.copytree(CONFIG.TARGET, backup_path)
+        print(f"Creating backup backup_{timestamp}...")
+        with tarfile.open(backup_path, "w:gz") as tar:
+            os.chdir(os.path.dirname(CONFIG.TARGET))
+            tar.add(os.path.basename(CONFIG.TARGET))
         print(f"Backup was created: {backup_path}")
     except Exception as ex:
-        print(f"Error: {ex}")
+        print(f"Error while creating: {ex}")
 
 def delete_backups():
     '''
@@ -28,15 +32,25 @@ def delete_backups():
     
     for backup in os.listdir(CONFIG.BACKUP_DIR):
         backup_path = os.path.join(CONFIG.BACKUP_DIR, backup)
-        if os.path.isdir(backup_path):
-            try:
-                backup_time_str = backup.split("_")[1] + "_" + backup.split("_")[2]
-                backup_time = datetime.datetime.strptime(backup_time_str, "%Y%m%d_%H%M%S")
-                if now - backup_time > retention_period:
+        try:
+            if backup.endswith("tar.gz") and backup.startswith('backup_'):
+                backup_time_str = backup[7:-7]
+                is_dir = False
+            elif os.path.isdir(backup_path) and backup.startswith('backup_') and '_' in backup:
+                backup_time_str = backup[7:]
+                is_dir = True
+            else:
+                continue
+
+            backup_time = datetime.datetime.strptime(backup_time_str, "%Y%m%d_%H%M%S")
+            if now - backup_time > retention_period:
+                if is_dir:
                     shutil.rmtree(backup_path)
-                    print(f"Backup was deleted: {backup_path}")
-            except Exception as e:
-                print(f"Error: {backup}: {e}")
+                else:
+                    os.remove(backup_path)
+                print(f"Backup was deleted: {backup_path}")
+        except Exception as e:
+            print(f"Error while deleting: {backup}: {e}")
 
 def main():
     create_backup()
